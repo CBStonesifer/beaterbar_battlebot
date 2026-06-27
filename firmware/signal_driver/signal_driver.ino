@@ -1,11 +1,14 @@
 // ── Pins ──────────────────────────────────────────────────────────────────
 const int STEERING_PIN = 35;
 const int THROTTLE_PIN = 34;
+const int WEAPON_PIN   = 18;
 
-const int MOTOR_L_IN1 = 25;
-const int MOTOR_L_IN2 = 26;
-const int MOTOR_R_IN1 = 27;
-const int MOTOR_R_IN2 = 14;
+const int MOTOR_L_IN1  = 25;
+const int MOTOR_L_IN2  = 26;
+const int MOTOR_R_IN1  = 27;
+const int MOTOR_R_IN2  = 14;
+const int WEAPON_IN1   = 2;
+const int WEAPON_IN2   = 15;
 
 const int FAULT_PIN = 33;
 
@@ -22,8 +25,9 @@ const int THROTTLE_IDLE = 1565;
 const int THROTTLE_MAX  = 2000;
 
 // ── Tuning ────────────────────────────────────────────────────────────────
-const int DEADBAND       = 5;
-const int TURN_MIX_RATIO = 50;
+const int DEADBAND         = 5;
+const int TURN_MIX_RATIO   = 50;
+const int WEAPON_THRESHOLD = 1500;
 
 // ─────────────────────────────────────────────────────────────────────────
 void setup() {
@@ -39,9 +43,13 @@ void setup() {
   ledcAttachChannel(MOTOR_L_IN2, PWM_FREQ, PWM_RES, 1);
   ledcAttachChannel(MOTOR_R_IN1, PWM_FREQ, PWM_RES, 2);
   ledcAttachChannel(MOTOR_R_IN2, PWM_FREQ, PWM_RES, 3);
+  ledcAttachChannel(WEAPON_IN1,  PWM_FREQ, PWM_RES, 4);
+  ledcAttachChannel(WEAPON_IN2,  PWM_FREQ, PWM_RES, 5);
 
   ledcWrite(MOTOR_L_IN1, 0);
   ledcWrite(MOTOR_L_IN2, 0);
+  ledcWrite(WEAPON_IN1,  0);
+  ledcWrite(WEAPON_IN2,  0);
 
   Serial.println("Setup complete.");
 }
@@ -86,6 +94,12 @@ int readThrottle() {
   return applyDeadband(constrain(throttle, -100, 100));
 }
 
+// ── Weapon toggle ─────────────────────────────────────────────────────────
+void setWeapon(bool on) {
+  ledcWrite(WEAPON_IN1, on ? 255 : 0);
+  ledcWrite(WEAPON_IN2, 0);
+}
+
 // ── Motor mixing ──────────────────────────────────────────────────────────
 void mixAndDrive(int throttle, int steering) {
   int leftSpeed, rightSpeed;
@@ -113,14 +127,19 @@ void mixAndDrive(int throttle, int steering) {
 
 // ─────────────────────────────────────────────────────────────────────────
 void loop() {
-  int steering = readSteering();
-  int throttle  = readThrottle();
+  int  steering = readSteering();
+  int  throttle = readThrottle();
   bool fault    = digitalRead(FAULT_PIN) == LOW;
 
+  int  weaponPulse = pulseIn(WEAPON_PIN, HIGH, 25000);
+  bool weaponOn    = weaponPulse > WEAPON_THRESHOLD;
+
   mixAndDrive(throttle, steering);
+  setWeapon(weaponOn);
 
   Serial.print("ST: ");     Serial.print(steering);
   Serial.print("  TH: ");   Serial.print(throttle);
+  Serial.print("  WPN: ");  Serial.print(weaponOn ? "ON" : "OFF");
   Serial.print("  ULT: ");  Serial.println(fault ? "** FAULT **" : "OK");
 
   delay(20);
