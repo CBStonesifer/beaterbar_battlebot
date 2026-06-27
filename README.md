@@ -183,7 +183,10 @@ The bot was driven under full battery power with all systems operating independe
 - **Drive** — successfully accelerated, turned, and reversed at varying speeds under RC control.
 - **Weapon** — spun up to full speed and was toggled on and off from the transmitter.
 - **Carpet performance** — struggled on carpet. The wheels lacked grip, and the design relies on the body sliding along the ground to stay low against opponents — which doesn't work well on high-friction surfaces.
-- **Battery connector** — the 3-pin JST-XH plugs do not physically prevent reverse polarity insertion. Connecting the battery backwards is easy to do and will damage the board.
+- **Battery connector** — the 3-pin plugs do not physically prevent reverse polarity insertion. Connecting the battery backwards is easy to do and will damage the board.
+
+<img src="resources/fried.jpg" width="300" alt="Fried ESP32 from reverse polarity" />
+<br><em>ESP32 after a flipping power contacts</em>
 
 ---
 
