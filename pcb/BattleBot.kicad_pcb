@@ -4351,7 +4351,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "BattleBot:Reciever"
+	(footprint "BattleBot:Receiver"
 		(layer "F.Cu")
 		(uuid "f3c06fbe-7179-4f55-a4eb-e21849afa24d")
 		(at 199.8 82.636628 -90)

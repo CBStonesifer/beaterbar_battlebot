@@ -10,8 +10,6 @@ const int MOTOR_R_IN2  = 14;
 const int WEAPON_IN1   = 2;
 const int WEAPON_IN2   = 15;
 
-const int FAULT_PIN = 33;
-
 // ── PWM config ────────────────────────────────────────────────────────────
 const int PWM_FREQ = 20000;
 const int PWM_RES  = 8;
@@ -29,15 +27,22 @@ const int DEADBAND         = 5;
 const int TURN_MIX_RATIO   = 50;
 const int WEAPON_THRESHOLD = 1500;
 
+// ── Failsafe ──────────────────────────────────────────────────────────────
+// pulseIn returns 0 on timeout (no signal). A valid RC frame sits ~1000-2000µs,
+// so anything outside this band is link loss or a glitch -> stop everything.
+const int PULSE_TIMEOUT = 25000;
+const int PULSE_MIN_OK  = 900;
+const int PULSE_MAX_OK  = 2100;
+
 // ─────────────────────────────────────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n=== RC CAR STARTING ===");
+  Serial.println("\n=== BATTLEBOT STARTING ===");
 
   pinMode(STEERING_PIN, INPUT);
   pinMode(THROTTLE_PIN, INPUT);
-  pinMode(FAULT_PIN, INPUT_PULLUP);
+  pinMode(WEAPON_PIN,   INPUT);
 
   ledcAttachChannel(MOTOR_L_IN1, PWM_FREQ, PWM_RES, 0);
   ledcAttachChannel(MOTOR_L_IN2, PWM_FREQ, PWM_RES, 1);
@@ -46,12 +51,23 @@ void setup() {
   ledcAttachChannel(WEAPON_IN1,  PWM_FREQ, PWM_RES, 4);
   ledcAttachChannel(WEAPON_IN2,  PWM_FREQ, PWM_RES, 5);
 
+  stopAll();
+  Serial.println("Setup complete.");
+}
+
+// ── True only for a plausible RC pulse; false on timeout/glitch ───────────
+bool validPulse(int pulse) {
+  return pulse >= PULSE_MIN_OK && pulse <= PULSE_MAX_OK;
+}
+
+// ── Cut all drive and weapon output ───────────────────────────────────────
+void stopAll() {
   ledcWrite(MOTOR_L_IN1, 0);
   ledcWrite(MOTOR_L_IN2, 0);
+  ledcWrite(MOTOR_R_IN1, 0);
+  ledcWrite(MOTOR_R_IN2, 0);
   ledcWrite(WEAPON_IN1,  0);
   ledcWrite(WEAPON_IN2,  0);
-
-  Serial.println("Setup complete.");
 }
 
 // ── Write a signed speed (-100..100) to one motor ─────────────────────────
@@ -75,16 +91,14 @@ int applyDeadband(int value) {
   return abs(value) <= DEADBAND ? 0 : value;
 }
 
-// ── Read steering: -100 (left) .. 0 .. +100 (right) ──────────────────────
-int readSteering() {
-  int pulse    = pulseIn(STEERING_PIN, HIGH, 25000);
+// ── Convert a validated steering pulse to -100 (left) .. +100 (right) ──────
+int steeringFromPulse(int pulse) {
   int steering = map(pulse, STEERING_MIN, STEERING_MAX, -100, 100);
   return applyDeadband(constrain(steering, -100, 100));
 }
 
-// ── Read throttle: -100 (full reverse) .. 0 .. +100 (full forward) ────────
-int readThrottle() {
-  int pulse = pulseIn(THROTTLE_PIN, HIGH, 25000);
+// ── Convert a validated throttle pulse to -100 (rev) .. +100 (fwd) ─────────
+int throttleFromPulse(int pulse) {
   int throttle;
   if (pulse >= THROTTLE_IDLE) {
     throttle = map(pulse, THROTTLE_IDLE, THROTTLE_MAX, 0, 100);
@@ -127,20 +141,28 @@ void mixAndDrive(int throttle, int steering) {
 
 // ─────────────────────────────────────────────────────────────────────────
 void loop() {
-  int  steering = readSteering();
-  int  throttle = readThrottle();
-  bool fault    = digitalRead(FAULT_PIN) == LOW;
+  int steeringPulse = pulseIn(STEERING_PIN, HIGH, PULSE_TIMEOUT);
+  int throttlePulse = pulseIn(THROTTLE_PIN, HIGH, PULSE_TIMEOUT);
+  int weaponPulse   = pulseIn(WEAPON_PIN,   HIGH, PULSE_TIMEOUT);
 
-  int  weaponPulse = pulseIn(WEAPON_PIN, HIGH, 25000);
-  bool weaponOn    = weaponPulse > WEAPON_THRESHOLD;
+  // Failsafe: drive disarms unless both steering and throttle are live.
+  if (!validPulse(steeringPulse) || !validPulse(throttlePulse)) {
+    stopAll();
+    Serial.println("** SIGNAL LOST -- MOTORS DISABLED **");
+    delay(20);
+    return;
+  }
+
+  int  steering = steeringFromPulse(steeringPulse);
+  int  throttle = throttleFromPulse(throttlePulse);
+  bool weaponOn = validPulse(weaponPulse) && weaponPulse > WEAPON_THRESHOLD;
 
   mixAndDrive(throttle, steering);
   setWeapon(weaponOn);
 
-  Serial.print("ST: ");     Serial.print(steering);
-  Serial.print("  TH: ");   Serial.print(throttle);
-  Serial.print("  WPN: ");  Serial.print(weaponOn ? "ON" : "OFF");
-  Serial.print("  ULT: ");  Serial.println(fault ? "** FAULT **" : "OK");
+  Serial.print("ST: ");    Serial.print(steering);
+  Serial.print("  TH: ");  Serial.print(throttle);
+  Serial.print("  WPN: "); Serial.println(weaponOn ? "ON" : "OFF");
 
   delay(20);
 }

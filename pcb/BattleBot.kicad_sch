@@ -5973,7 +5973,7 @@
 				)
 			)
 		)
-		(property "Footprint" "BattleBot:Reciever"
+		(property "Footprint" "BattleBot:Receiver"
 			(at 20.32 130.81 0)
 			(hide yes)
 			(show_name no)
