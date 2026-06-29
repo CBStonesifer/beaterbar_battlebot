@@ -2,6 +2,8 @@
 
 A 3-pound (beetleweight) combat robot designed and built across the full hardware stack: mechanical CAD, PCB layout, and embedded firmware. The goal was a **reproducible end-to-end build process** — from CAD model to fabricated board to driving firmware — rather than peak performance. V2 will optimize for weight and combat performance.
 
+> A full reflection on the build is on Substack: [Earning Three Minutes in the Ring](https://open.substack.com/pub/carterstonesifer/p/earning-three-minutes-in-the-ring?r=2y2f28&utm_campaign=post&utm_medium=web&showWelcomeOnShare=true)
+
 **Skills demonstrated:** Fusion 360 / FDM prototyping · KiCad schematic + layout · custom footprint creation · Gerber fabrication output · ESP32 embedded C · RC PWM decode · LEDC motor PWM · skid-steer mixing
 
 ---
@@ -197,6 +199,7 @@ The bot was driven under full battery power with all systems operating independe
 - **Chassis Side Overhangs** — the overhangs on the side were quickly added to thicken the width of the walls to strengthen the bot, and for style. They provide a grip for another bot to easily flip the vehicle. The next design should minimize the gap between the side edges and the ground.
 - **Hard Power Cut-Off** — as per NHRL rules, the bot requires a quick physical power disconnect to disable movement and weapon systems, not just a code deactivation.
 - **Reverse-polarity protection** — V1 fried a board because the 3-pin power plug can be inserted backwards. V2 should add a series Schottky / P-channel MOSFET ideal-diode at the battery input *and* a keyed/slotted connector so the battery physically can't seat the wrong way. The board itself is cheap and easily reproducible from the gerbers, so losing one to this wasn't costly — but it's a trivial thing to design out.
+- **Undersized motor drivers** — the DRV8833 is rated 1.5 A continuous / 2 A peak, but the 390 drive motors stall around 5–7 A and the 550 weapon motor well above that. Under real load the part is pushed past its peak, where it current-limits or fails. V2 should size the H-bridge to *stall* current, not no-load current, and add a firmware soft-start ramp so the weapon spins up gradually instead of slamming to full duty and drawing a large inrush spike. The broader lesson: parts that work together aren't necessarily matched on performance — each one needs headroom for the worst case the system will actually see.
 - **Hardened weapon impactor** — machine or print in PETG/nylon/polycarbonate; evaluate a metal impactor for the beater bar.
 - **Weight optimization** — the current design is 2.76 lbs, which leaves room to upgrade/add additional parts (i.e. the weapon material should be metal).
 - **Optimize print settings** — a final print with more granular layer heights and higher infill will strengthen the hull.
